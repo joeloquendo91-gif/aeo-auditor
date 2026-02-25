@@ -67,36 +67,44 @@ export default function Home() {
   const [report, setReport] = useState<any>(null)
   const [error, setError] = useState('')
   const [showMock, setShowMock] = useState(true)
+  const [inputMode, setInputMode] = useState<'url' | 'paste'>('url')
+  const [rawHtml, setRawHtml] = useState('')
 
   async function analyze() {
-    if (!url) return
-    setLoading(true)
-    setError('')
-    setReport(null)
-    setShowMock(false)
+  if (inputMode === 'url' && !url) return
+  if (inputMode === 'paste' && !rawHtml) return
 
-    setStatus('Fetching content...')
-    await new Promise(r => setTimeout(r, 900))
-    setStatus('Extracting entities with Google NLP...')
-    await new Promise(r => setTimeout(r, 900))
-    setStatus('Running AEO audit with Claude...')
+  setLoading(true)
+  setError('')
+  setReport(null)
+  setShowMock(false)
 
-    try {
-      const res = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, keyword }),
-      })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      setReport(data)
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong')
-    } finally {
-      setLoading(false)
-      setStatus('')
-    }
+  setStatus('Parsing content...')
+  await new Promise(r => setTimeout(r, 900))
+  setStatus('Extracting entities with Google NLP...')
+  await new Promise(r => setTimeout(r, 900))
+  setStatus('Running AEO audit with Claude...')
+
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: inputMode === 'url' ? url : undefined,
+        rawHtml: inputMode === 'paste' ? rawHtml : undefined,
+        keyword,
+      }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+    setReport(data)
+  } catch (err: any) {
+    setError(err.message || 'Something went wrong')
+  } finally {
+    setLoading(false)
+    setStatus('')
   }
+}
 
   const activeResult = report
     ? {
@@ -206,55 +214,108 @@ export default function Home() {
         </div>
 
         {/* INPUT CARD */}
-        <div className="fade-up d5" style={{ maxWidth: 680, margin: '0 auto', padding: '0 24px' }}>
-          <div style={{
-            background: 'white', border: `1px solid ${C.border}`, borderRadius: 16, padding: 20,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
-          }}>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center' }}>
-              <input
-                className="input-field"
-                type="url"
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && analyze()}
-                placeholder="https://yoursite.com/page-to-audit"
-                style={{
-                  flex: 1, padding: '12px 14px', borderRadius: 8,
-                  border: `1px solid ${C.border}`, background: C.bg,
-                  color: C.textPrimary, fontSize: 14,
-                  fontFamily: "'Geist Mono', monospace",
-                }}
-              />
-              <button
-                className="analyze-btn"
-                onClick={analyze}
-                disabled={loading || !url}
-                style={{
-                  padding: '12px 22px', borderRadius: 8, border: 'none',
-                  background: C.accent, color: 'white', fontSize: 14, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: "'Geist', sans-serif", whiteSpace: 'nowrap',
-                }}
-              >
-                {loading ? status : 'Analyze →'}
-              </button>
-            </div>
-            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
-              <input
-                className="input-field"
-                type="text"
-                value={keyword}
-                onChange={e => setKeyword(e.target.value)}
-                placeholder="Target keyword (optional) — e.g. IVF treatment options"
-                style={{
-                  width: '100%', padding: '8px 4px', border: 'none',
-                  background: 'transparent', color: C.textSecondary, fontSize: 13,
-                  fontFamily: "'Geist', sans-serif",
-                }}
-              />
-            </div>
-          </div>
+<div className="fade-up d5" style={{ maxWidth: 680, margin: '0 auto', padding: '0 24px' }}>
+  <div style={{
+    background: 'white', border: `1px solid ${C.border}`, borderRadius: 16, padding: 20,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04)',
+  }}>
+
+    {/* Mode toggle */}
+    <div style={{ display: 'flex', gap: 2, background: C.bgMuted, padding: 3, borderRadius: 8, width: 'fit-content', border: `1px solid ${C.border}`, marginBottom: 14 }}>
+      {(['url', 'paste'] as const).map(m => (
+        <button key={m} onClick={() => setInputMode(m)} style={{
+          padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
+          background: inputMode === m ? 'white' : 'transparent',
+          color: inputMode === m ? C.textPrimary : C.textDim,
+          fontWeight: 500, fontSize: 12, fontFamily: "'Geist', sans-serif",
+          boxShadow: inputMode === m ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+          transition: 'all 0.15s',
+        }}>
+          {m === 'url' ? 'URL' : 'Paste HTML'}
+        </button>
+      ))}
+    </div>
+
+    {inputMode === 'url' && (
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center' }}>
+        <input
+          className="input-field"
+          type="url"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && analyze()}
+          placeholder="https://yoursite.com/page-to-audit"
+          style={{
+            flex: 1, padding: '12px 14px', borderRadius: 8,
+            border: `1px solid ${C.border}`, background: C.bg,
+            color: C.textPrimary, fontSize: 14,
+            fontFamily: "'Geist Mono', monospace",
+          }}
+        />
+        <button
+          className="analyze-btn"
+          onClick={analyze}
+          disabled={loading || !url}
+          style={{
+            padding: '12px 22px', borderRadius: 8, border: 'none',
+            background: C.accent, color: 'white', fontSize: 14, fontWeight: 600,
+            cursor: 'pointer', fontFamily: "'Geist', sans-serif", whiteSpace: 'nowrap',
+          }}
+        >
+          {loading ? status : 'Analyze →'}
+        </button>
+      </div>
+    )}
+
+    {inputMode === 'paste' && (
+      <div style={{ marginBottom: 14 }}>
+        <textarea
+          className="input-field"
+          value={rawHtml}
+          onChange={e => setRawHtml(e.target.value)}
+          placeholder={`Paste rendered HTML from Chrome DevTools console:\n\ncopy(document.body.outerHTML)`}
+          rows={5}
+          style={{
+            width: '100%', padding: '12px 14px', borderRadius: 8,
+            border: `1px solid ${C.border}`, background: C.bg,
+            color: C.textPrimary, fontSize: 12,
+            fontFamily: "'Geist Mono', monospace",
+            resize: 'vertical', lineHeight: 1.6,
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button
+            className="analyze-btn"
+            onClick={analyze}
+            disabled={loading || !rawHtml}
+            style={{
+              padding: '12px 22px', borderRadius: 8, border: 'none',
+              background: C.accent, color: 'white', fontSize: 14, fontWeight: 600,
+              cursor: 'pointer', fontFamily: "'Geist', sans-serif",
+            }}
+          >
+            {loading ? status : 'Analyze →'}
+          </button>
         </div>
+      </div>
+    )}
+
+    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
+      <input
+        className="input-field"
+        type="text"
+        value={keyword}
+        onChange={e => setKeyword(e.target.value)}
+        placeholder="Target keyword (optional) — e.g. IVF treatment options"
+        style={{
+          width: '100%', padding: '8px 4px', border: 'none',
+          background: 'transparent', color: C.textSecondary, fontSize: 13,
+          fontFamily: "'Geist', sans-serif",
+        }}
+      />
+    </div>
+  </div>
+</div>
 
         {error && (
           <div style={{ maxWidth: 680, margin: '12px auto', padding: '0 24px' }}>

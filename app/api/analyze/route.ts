@@ -1,3 +1,4 @@
+import ReactMarkdown from 'react-markdown'
 import Anthropic from '@anthropic-ai/sdk'
 import { LanguageServiceClient } from '@google-cloud/language'
 import { NextRequest, NextResponse } from 'next/server'
@@ -12,8 +13,13 @@ async function scrapeUrl(url: string) {
 
   $('script, style, nav, footer, header, noscript, iframe').remove()
 
-  const title = $('title').text().trim()
-  const metaDescription = $('meta[name="description"]').attr('content') || ''
+  const ogTitle = $('meta[property="og:title"]').attr('content')
+  const h1Text = $('h1').first().text().trim()
+  const titleTag = $('title').text().trim()
+  const title = ogTitle || h1Text || titleTag || 'Untitled'
+
+  const metaDescription = $('meta[name="description"]').attr('content') ||
+                          $('meta[property="og:description"]').attr('content') || ''
   const h1 = $('h1').first().text().trim()
   const h2s = $('h2').map((_, el) => $(el).text().trim()).get()
   
@@ -25,16 +31,39 @@ async function scrapeUrl(url: string) {
 
   return { title, metaDescription, h1, h2s, bodyText }
 }
+function parseHtml(html: string) {
+  const $ = cheerio.load(html)
+
+  $('script, style, nav, footer, header, noscript, iframe').remove()
+
+  // Try to get the best title — in order of reliability
+  const ogTitle = $('meta[property="og:title"]').attr('content')
+  const h1Text = $('h1').first().text().trim()
+  const titleTag = $('title').text().trim()
+
+  const title = ogTitle || h1Text || titleTag || 'Untitled'
+
+  const metaDescription = $('meta[name="description"]').attr('content') || 
+                          $('meta[property="og:description"]').attr('content') || ''
+  const h1 = $('h1').first().text().trim()
+  const h2s = $('h2').map((_, el) => $(el).text().trim()).get()
+  const bodyText = ($('article, main, .content, #content, body').first().text() || $('body').text())
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 5000)
+
+  return { title, metaDescription, h1, h2s, bodyText }
+}
 
 export async function POST(req: NextRequest) {
-  const { url, keyword } = await req.json()
+  const { url, keyword, rawHtml } = await req.json()
 
-  if (!url) {
-    return NextResponse.json({ error: 'URL is required' }, { status: 400 })
+  if (!url && !rawHtml) {
+    return NextResponse.json({ error: 'URL or HTML is required' }, { status: 400 })
   }
 
   try {
-    const content = await scrapeUrl(url)
+    const content = rawHtml ? parseHtml(rawHtml) : await scrapeUrl(url)
     const entities = await getEntities(content.bodyText)
     const audit = await runAudit(content, entities, keyword)
     return NextResponse.json({ content, entities, audit })
@@ -60,8 +89,14 @@ export async function POST(req: NextRequest) {
   return result.entities
     ?.filter(e => (e.salience ?? 0) > 0.01)
     .sort((a, b) => (b.salience ?? 0) - (a.salience ?? 0))
+    .reduce((acc: any[], e) => {
+      const name = e.name?.toLowerCase() ?? ''
+      if (!acc.find(x => x.name?.toLowerCase() === name)) {
+        acc.push({ name: e.name, type: e.type, salience: e.salience })
+      }
+      return acc
+    }, [])
     .slice(0, 20)
-    .map(e => ({ name: e.name, type: e.type, salience: e.salience }))
 }
 async function runAudit(content: any, entities: any, keyword: string) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
