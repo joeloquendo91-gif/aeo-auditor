@@ -1,5 +1,5 @@
 'use client'
-
+import ReactMarkdown from 'react-markdown'
 import { useState } from 'react'
 
 const C = {
@@ -378,9 +378,18 @@ export default function Home() {
               <div style={{ fontFamily: "'Geist Mono', monospace", fontSize: 10, color: C.textDim, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 16 }}>
                 AEO Findings
               </div>
-              <div style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+              <ReactMarkdown
+                components={{
+                  h2: (props) => <div style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 17, fontWeight: 700, color: C.textPrimary, marginTop: 24, marginBottom: 8 }}>{props.children}</div>,
+                  h3: (props) => <div style={{ fontSize: 14, fontWeight: 600, color: C.textPrimary, marginTop: 16, marginBottom: 6 }}>{props.children}</div>,
+                  p: (props) => <p style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, marginBottom: 12 }}>{props.children}</p>,
+                  strong: (props) => <strong style={{ color: C.textPrimary, fontWeight: 600 }}>{props.children}</strong>,
+                  li: (props) => <li style={{ fontSize: 14, color: C.textSecondary, lineHeight: 1.8, marginBottom: 6 }}>{props.children}</li>,
+                  ul: (props) => <ul style={{ paddingLeft: 20, marginBottom: 12 }}>{props.children}</ul>,
+                }}
+              >
                 {activeResult.audit}
-              </div>
+              </ReactMarkdown>
             </div>
 
             {/* Quick wins — mock only */}
