@@ -21,7 +21,7 @@ async function scrapeUrl(url: string) {
   const metaDescription = $('meta[name="description"]').attr('content') ||
                           $('meta[property="og:description"]').attr('content') || ''
   const h1 = $('h1').first().text().trim()
-  const h2s = $('h2').map((_, el) => $(el).text().trim()).get()
+  const h2s = $('h2, h3').map((_, el) => $(el).text().trim()).get()
   
   // Get text from meaningful content areas only
   const bodyText = ($('article, main, .content, #content, body').first().text() || $('body').text())
@@ -46,7 +46,7 @@ function parseHtml(html: string) {
   const metaDescription = $('meta[name="description"]').attr('content') || 
                           $('meta[property="og:description"]').attr('content') || ''
   const h1 = $('h1').first().text().trim()
-  const h2s = $('h2').map((_, el) => $(el).text().trim()).get()
+  const h2s = $('h2, h3').map((_, el) => $(el).text().trim()).get()
   const bodyText = ($('article, main, .content, #content, body').first().text() || $('body').text())
     .replace(/\s+/g, ' ')
     .trim()
