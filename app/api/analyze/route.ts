@@ -90,12 +90,20 @@ export async function POST(req: NextRequest) {
     ?.filter(e => (e.salience ?? 0) > 0.01)
     .sort((a, b) => (b.salience ?? 0) - (a.salience ?? 0))
     .reduce((acc: any[], e) => {
-      const name = e.name?.toLowerCase() ?? ''
-      if (!acc.find(x => x.name?.toLowerCase() === name)) {
-        acc.push({ name: e.name, type: e.type, salience: e.salience })
-      }
-      return acc
-    }, [])
+  const name = e.name?.toLowerCase() ?? ''
+  const alreadyExists = acc.find(x => {
+    const existing = x.name?.toLowerCase() ?? ''
+    return existing === name || 
+           existing === name + 's' || 
+           name === existing + 's' ||
+           existing === name + 'es' ||
+           name === existing + 'es'
+  })
+  if (!alreadyExists) {
+    acc.push({ name: e.name, type: e.type, salience: e.salience })
+  }
+  return acc
+}, [])
     .slice(0, 20)
 }
 async function runAudit(content: any, entities: any, keyword: string) {
