@@ -1,4 +1,4 @@
-//v2
+//v3
 import ReactMarkdown from 'react-markdown'
 import Anthropic from '@anthropic-ai/sdk'
 import { LanguageServiceClient } from '@google-cloud/language'
@@ -13,6 +13,13 @@ async function scrapeUrl(url: string) {
   const $ = cheerio.load(html)
 
   $('script, style, nav, footer, header, noscript, iframe').remove()
+  // Remove UI elements that bleed into content
+$('button, a.nav, .breadcrumb, [aria-label], [role="button"]').remove()
+
+// Inject spaces between ALL elements to prevent concatenation
+$('*').each((_, el) => {
+  $(el).append(' ')
+})
 
   const ogTitle = $('meta[property="og:title"]').attr('content')
   const h1Text = $('h1').first().text().trim()
@@ -40,6 +47,13 @@ function parseHtml(html: string) {
   const $ = cheerio.load(html)
 
   $('script, style, nav, footer, header, noscript, iframe').remove()
+  // Remove UI elements that bleed into content
+$('button, a.nav, .breadcrumb, [aria-label], [role="button"]').remove()
+
+// Inject spaces between ALL elements to prevent concatenation
+$('*').each((_, el) => {
+  $(el).append(' ')
+})
 
   // Try to get the best title — in order of reliability
   const ogTitle = $('meta[property="og:title"]').attr('content')
@@ -147,7 +161,7 @@ Be specific and actionable. No generic advice. Reference actual content from the
 
   const message = await client.messages.create({
     model: 'claude-opus-4-6',
-    max_tokens: 1024,
+    max_tokens: 3000,
     messages: [{ role: 'user', content: prompt }]
   })
 
