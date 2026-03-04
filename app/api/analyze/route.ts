@@ -53,7 +53,7 @@ function extractContent($: cheerio.CheerioAPI) {
     .replace(/\s+/g, ' ')
     .trim()
 
-  const bodyText = (rawText + (tableText ? '\n\nTABLE CONTENT:\n' + tableText : '')).slice(0, 8000)
+  const bodyText = (rawText + (tableText ? '\n\nTABLE CONTENT:\n' + tableText : '')).slice(0, 12000)
 
   return { title, metaDescription, h1, h2s, h3s, boilerplateHeadings, bodyText }
 }
@@ -124,7 +124,7 @@ TOP ENTITIES DETECTED BY GOOGLE NLP:
 ${entityList}
 
 CONTENT SAMPLE:
-${content.bodyText.slice(0, 5000)}
+${content.bodyText.slice(0, 12000)}
 
 Provide a structured AEO audit with exactly these sections:
 1. **What This Page Is About** — summarize what Google NLP thinks this page covers based on entities
@@ -136,7 +136,7 @@ Be specific and actionable. No generic advice. Reference actual content from the
 
   const message = await client.messages.create({
     model: 'claude-opus-4-6',
-    max_tokens: 3000,
+    max_tokens: 5000,
     messages: [{ role: 'user', content: prompt }]
   })
 
