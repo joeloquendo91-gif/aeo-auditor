@@ -1,4 +1,4 @@
-//v4
+//v3
 import Anthropic from '@anthropic-ai/sdk'
 import { LanguageServiceClient } from '@google-cloud/language'
 import { NextRequest, NextResponse } from 'next/server'
@@ -7,6 +7,7 @@ import * as cheerio from 'cheerio'
 function extractContent($: cheerio.CheerioAPI) {
   $('script, style, nav, footer, header, noscript, iframe').remove()
   $('button, a.nav, .breadcrumb, [role="button"]').remove()
+  $('[class*="cookie"], [class*="gdpr"], [class*="consent"], [id*="cookie"], [id*="gdpr"]').remove()
 
   // Inject spaces between all elements to prevent concatenation
   $('*').each((_, el) => {
@@ -22,26 +23,39 @@ function extractContent($: cheerio.CheerioAPI) {
                           $('meta[property="og:description"]').attr('content') || ''
 
   const h1 = $('h1').first().text().trim()
-  const h2s = $('h2').map((_, el) => $(el).text().trim()).get()
-  const h3s = $('h3').map((_, el) => $(el).text().trim()).get()
+
+  // Extract headings from main content area only
+  const contentArea = $('article, main, .content, #content, [role="main"]').first()
+  const target = contentArea.length ? contentArea : $('body')
+
+  const h2s = target.find('h2').map((_, el) => $(el).text().trim()).get().filter(Boolean)
+  const h3s = target.find('h3').map((_, el) => $(el).text().trim()).get().filter(Boolean)
+
+  // Detect boilerplate headings outside main content
+  const allH2s = $('h2').map((_, el) => $(el).text().trim()).get().filter(Boolean)
+  const boilerplateHeadings = allH2s.filter(h => !h2s.includes(h))
 
   // Extract table content explicitly before text() flattens it
   const tableText = $('table').map((_, table) => {
     return $(table).find('tr').map((_, row) => {
       return $(row).find('td, th').map((_, cell) =>
         $(cell).text().trim()
-      ).get().join(' | ')
-    }).get().join('\n')
+      ).get()
+      .filter(cell => cell.length > 0)
+      .join(' | ')
+    }).get()
+    .filter(row => row.length > 0)
+    .join('\n')
   }).get().join('\n\n')
 
-  const rawText = ($('article, main, .content, #content, body').first().text() || $('body').text())
+  const rawText = (target.text() || $('body').text())
     .replace(/\t/g, ' | ')
     .replace(/\s+/g, ' ')
     .trim()
 
   const bodyText = (rawText + (tableText ? '\n\nTABLE CONTENT:\n' + tableText : '')).slice(0, 8000)
 
-  return { title, metaDescription, h1, h2s, h3s, bodyText }
+  return { title, metaDescription, h1, h2s, h3s, boilerplateHeadings, bodyText }
 }
 
 async function scrapeUrl(url: string) {
@@ -101,8 +115,9 @@ PAGE DETAILS:
 Title: ${content.title}
 Meta Description: ${content.metaDescription}
 H1: ${content.h1}
-H2s: ${content.h2s.join(', ')}
-H3s: ${content.h3s?.join(', ')}
+H2s (main content): ${content.h2s.join(', ')}
+H3s (main content): ${content.h3s?.join(', ')}
+Boilerplate headings detected outside main content (cookie banners, footers, nav): ${content.boilerplateHeadings?.join(', ') || 'none'}
 Target keyword: ${keyword || 'not specified'}
 
 TOP ENTITIES DETECTED BY GOOGLE NLP:
@@ -114,7 +129,7 @@ ${content.bodyText.slice(0, 5000)}
 Provide a structured AEO audit with exactly these sections:
 1. **What This Page Is About** — summarize what Google NLP thinks this page covers based on entities
 2. **Why AI May Not Be Citing This** — 3-4 specific findings, each with a one-sentence fix
-3. **Structure Issues** — heading hierarchy, answer extractability, formatting problems
+3. **Structure Issues** — heading hierarchy, answer extractability, formatting problems. Call out any boilerplate headings polluting the heading hierarchy.
 4. **Quick Wins** — top 3 changes ranked by effort vs impact
 
 Be specific and actionable. No generic advice. Reference actual content from the page.`
