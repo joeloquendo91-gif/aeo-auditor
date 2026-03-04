@@ -25,6 +25,10 @@ async function scrapeUrl(url: string) {
   const h2s = $('h2, h3').map((_, el) => $(el).text().trim()).get()
   
   // Get text from meaningful content areas only
+  // Inject spaces between block elements to prevent word concatenation
+$('h1, h2, h3, h4, p, li, div, td').each((_, el) => {
+  $(el).append(' ')
+})
   const bodyText = ($('article, main, .content, #content, body').first().text() || $('body').text())
     .replace(/\s+/g, ' ')
     .trim()
@@ -48,6 +52,10 @@ function parseHtml(html: string) {
                           $('meta[property="og:description"]').attr('content') || ''
   const h1 = $('h1').first().text().trim()
   const h2s = $('h2, h3').map((_, el) => $(el).text().trim()).get()
+  // Inject spaces between block elements to prevent word concatenation
+$('h1, h2, h3, h4, p, li, div, td').each((_, el) => {
+  $(el).append(' ')
+})
   const bodyText = ($('article, main, .content, #content, body').first().text() || $('body').text())
     .replace(/\s+/g, ' ')
     .trim()
