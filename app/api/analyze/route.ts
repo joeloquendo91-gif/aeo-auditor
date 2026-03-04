@@ -39,7 +39,7 @@ $('h1, h2, h3, h4, p, li, div, td').each((_, el) => {
   const bodyText = ($('article, main, .content, #content, body').first().text() || $('body').text())
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 5000)
+    .slice(0, 8000)
 
   return { title, metaDescription, h1, h2s, bodyText }
 }
